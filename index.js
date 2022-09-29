@@ -25,7 +25,7 @@ var linesRead = 0;
 
 
 exports.handler = function(event, context, cb) {
-
+    var parsedMsg = "";
     var params = {
         Bucket: event.Records[0].s3.bucket.name,
         Key: event.Records[0].s3.object.key
@@ -34,8 +34,9 @@ exports.handler = function(event, context, cb) {
 
     };
 
-    exports.blockQueue = async.queue(exports.processBlockFromQueue, process.env.CONCURRENCY);
-    exports.blockQueue.drain = cb;
+//    exports.blockQueue = async.queue(exports.processBlockFromQueue, process.env.CONCURRENCY);
+//    exports.blockQueue.drain = cb;
+    exports.httpPost
 
     return exports.getS3().getObject(params).createReadStream()
         .on('end', function() {
@@ -77,14 +78,58 @@ exports.processBlockFromQueue = function(block, cb) {
     });
 }
 
-exports.sqsParamsTemplate = function(messages, queue) {
-    return params = {
-        Entries: messages.map(function(message) {
-            return {
-                Id: md5(message),
-                MessageBody: message
-            };
-        }),
-        QueueUrl: queue
+// exports.sqsParamsTemplate = function(messages, queue) {
+//     return params = {
+//         Entries: messages.map(function(message) {
+//             return {
+//                 Id: md5(message),
+//                 MessageBody: message
+//             };
+//         }),
+//         QueueUrl: queue
+//     };
+// }
+// ============== http
+const https = require('https');
+
+const doPostRequest = () => {
+
+  const data = {
+    value1: 1,
+    value2: 2,
+  };
+
+  return new Promise((resolve, reject) => {
+    const options = {
+      host: 'www.example.com',
+      path: '/post/example/action',
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      }
     };
-}
+    
+    //create the request object with the callback with the result
+    const req = https.request(options, (res) => {
+      resolve(JSON.stringify(res.statusCode));
+    });
+
+    // handle the possible errors
+    req.on('error', (e) => {
+      reject(e.message);
+    });
+    
+    //do the request
+    req.write(JSON.stringify(data));
+
+    //finish the request
+    req.end();
+  });
+};
+
+
+exports.httpPost = async (event) => {
+  await doPostRequest()
+    .then(result => console.log(`Status code: ${result}`))
+    .catch(err => console.error(`Error doing the request for the event: ${JSON.stringify(event)} => ${err}`));
+};
